@@ -2,80 +2,72 @@
 
 var grunt = require('grunt');
 var path = require('path');
+var rm = require('rimraf');
+var mkdir = require('mkdirp');
+var dynamicFilename = "grunt-crx-13.3.7.crx";
 var expect = require('chai').expect;
 
 var extensionHelper = require(__dirname + '/../lib/crx.js').init(grunt);
 
 describe('lib/crx', function(){
-  var extensionConfigs, dynamicFilename = "grunt-crx-13.3.7.crx";
+  var extensionConfigs;
 
   beforeEach(function(){
     extensionConfigs = {
       "standard": extensionHelper.getTaskConfiguration('test-standard'),
       "codebase": extensionHelper.getTaskConfiguration('test-codebase'),
-      "exclude": extensionHelper.getTaskConfiguration('test-exclude'),
-      "edge": extensionHelper.getTaskConfiguration('test-edge')
+      "exclude": extensionHelper.getTaskConfiguration('test-exclude')
     };
   });
 
-  afterEach(function(){
-    grunt.file.exists("test/data/files/") && grunt.file.delete("test/data/files/");
+  afterEach(function(done){
+    var filepath = path.join(__dirname, 'data', 'files');
+
+    rm(filepath, mkdir.bind(null, filepath, done));
   });
 
-  it('should package without codebase setting', function(done){
-    var crx = extensionHelper.createObject(extensionConfigs.standard);
+  describe('build', function(){
+    it('should build without the codebase parameter', function(done){
+      var crx = extensionHelper.createObject(extensionConfigs.standard);
 
-    expect(function(){
       extensionHelper.build(crx, function(){
-        expect(grunt.file.expand('test/data/files/test.crx')).to.have.length.of(1);
-        expect(grunt.file.expand('test/data/files/'+dynamicFilename)).to.be.empty;
-        expect(grunt.file.expand('test/data/files/updates.xml')).to.be.empty;
-        crx.destroy();
+	expect(grunt.file.expand('test/data/files/test.crx')).to.have.lengthOf(1);
+	expect(grunt.file.expand('test/data/files/'+dynamicFilename)).to.have.lengthOf(0);
+	expect(grunt.file.expand('test/data/files/updates.xml')).to.have.lengthOf(0);
 
-        done();
+	crx.destroy();
+	done();
       });
-    }).to.not.throw();
-  });
-
-  it('should package with codebase setting', function(done){
-    var crx = extensionHelper.createObject(extensionConfigs.codebase);
-
-    extensionHelper.build(crx, function(){
-      expect(grunt.file.expand('test/data/files/test.crx')).to.be.empty;
-      expect(grunt.file.expand('test/data/files/'+dynamicFilename)).to.have.length.of(1);
-      expect(grunt.file.expand('test/data/files/updates.xml')).to.be.empty;
-
-      crx.destroy();
-      done();
     });
-  });
 
-  it('should exclude files', function(done){
-    var crx = extensionHelper.createObject(extensionConfigs.exclude);
-    extensionHelper.build(crx, function(){
-      //local
-      expect(grunt.file.expand('test/data/src/stuff/*')).to.have.length.of(1);
-      expect(grunt.file.expand('test/data/src/*')).to.have.length.of(5);
+    it('should build with a codebase parameter', function(done){
+      var crx = extensionHelper.createObject(extensionConfigs.codebase);
 
-      //copy
-      expect(grunt.file.expand(path.join(crx.path + '/stuff/*'))).to.be.empty;
-      expect(grunt.file.expand(path.join(crx.path + '/*'))).to.have.length.of(3);
+      extensionHelper.build(crx, function(){
+	expect(grunt.file.expand('test/data/files/test.crx')).to.have.lengthOf(0);
+	expect(grunt.file.expand('test/data/files/'+dynamicFilename)).to.have.lengthOf(1);
+	expect(grunt.file.expand('test/data/files/updates.xml')).to.have.lengthOf(0);
 
-      crx.destroy();
-      done();
+        crx.destroy();
+	done();
+      });
     });
-  });
 
-  it('should work with an array of sources', function(done){
-    var standard = extensionHelper.createObject(extensionConfigs.standard);
-    var edge = extensionHelper.createObject(extensionConfigs.edge);
+    it('should exclude files', function(done){
+      var crx = extensionHelper.createObject(extensionConfigs.exclude);
 
-    expect(standard.rootDirectory).to.be.a('string');
-    expect(edge.rootDirectory).to.be.a('string');
+      extensionHelper.build(crx, function(){
+        //local
+	expect(grunt.file.expand('test/data/src/stuff/*')).to.have.lengthOf(1);
+	expect(grunt.file.expand('test/data/src/*')).to.have.lengthOf(5);
 
-    expect(standard.dest).to.be.a('string');
-    expect(edge.dest).to.be.a('string');
+        //copy
+	expect(grunt.file.expand(path.join(crx.path + '/stuff/*'))).to.have.lengthOf(0);
+	expect(grunt.file.expand(path.join(crx.path + '/*'))).to.have.lengthOf(3);
 
-    done();
+        crx.destroy();
+	done();
+      });
+    });
   });
 });
